@@ -31,7 +31,7 @@ The bot sends a request to this endpoint, processes the response, and updates th
 1. Clone the repository:
     ```sh
     git clone https://github.com/spectre-project/SpectreNetworkDiscordStatsBot.git
-    cd SpectreNetworkStatsBot
+    cd SpectreNetworkDiscordStatsBot
     ```
 
 2. Install the required Python packages:
