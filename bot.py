@@ -137,7 +137,7 @@ async def update_channel(guild, channel_name, api_call, calculate_supply_percent
         new_name = f"Mined Supply: {mined_supply_percentage:.2f}%"
     else:
         if channel_name == "Mined Coins:":
-            new_name = f"{channel_name} {round(data / 1e6)} mio"
+            new_name = f"{channel_name} {data / 1e6:.1f} mio"
         elif channel_name == "Blockreward:":
             new_name = f"{channel_name} {data}"
         else:
