@@ -1,111 +1,193 @@
 import discord
-import requests
+from discord.ext import commands
+import aiohttp
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict, deque
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-# Define intents with member access
-intents = discord.Intents.default()
-intents.voice_states = True
-intents.members = True  # Enable access to member information
+# Define intents with all access
+intents = discord.Intents.all()
 
-client = discord.Client(intents=intents)
+# Initialize bot
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-TOKEN = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'  # Replace with your actual token
-
-CATEGORY_NAME = "--Spectre Network Stats--"
-CATEGORY_ID = 1236812312921509959  # Replace with your actual category ID
-ROLE_ID = 1233113243741061241  # Replace with your actual role ID
-MEMBER_COUNT_CHANNEL_ID = 1248376416098189475  # Replace with your actual channel ID
-
-# Variable to store max supply
-MAX_SUPPLY = None
-
-# Function to get max supply
-async def get_max_supply():
-    response = requests.get('https://api.spectre-network.org/info/coinsupply/max', headers={'accept': 'text/plain'})
-    max_supply = float(response.text)
-    logging.info(f"Max supply fetched: {max_supply}")
-    return max_supply
-
-# Function to get circulating supply
-async def get_circulating_supply():
-    response = requests.get('https://api.spectre-network.org/info/coinsupply/circulating?in_billion=false', headers={'accept': 'text/plain'})
-    circulating_supply = float(response.text)
-    logging.info(f"Circulating supply fetched: {circulating_supply}")
-    return circulating_supply
-
-# Function to get hashrate
-async def get_hashrate():
-    response = requests.get('https://api.spectre-network.org/info/hashrate?stringOnly=false', headers={'accept': 'application/json'})
-    hashrate = response.json()['hashrate']
-    logging.info(f"Hashrate fetched: {hashrate}")
-    return hashrate
-
-# Function to get blockreward
-async def get_blockreward():
-    response = requests.get('https://api.spectre-network.org/info/blockreward?stringOnly=false', headers={'accept': 'application/json'})
-    blockreward = response.json()['blockreward']
-    logging.info(f"Blockreward fetched: {blockreward}")
-    return blockreward
-
-# Function to get halving data
-async def get_halving_data():
-    response = requests.get('https://api.spectre-network.org/info/halving', headers={'accept': 'application/json'})
-    halving_data = response.json()
-    logging.info(f"Halving data fetched: {halving_data}")
-    return halving_data
-
-# Predefined channel IDs (replace with your actual IDs)
+# Constants
+TOKEN = 'XXXXXXXX'  # Replace with your bot token
+CATEGORY_ID = XXXXXXXX  # Replace with your actual category ID
+ROLE_ID = XXXXXXXX  # Replace with your actual role ID
+MEMBER_COUNT_CHANNEL_ID = XXXXXXXX  # Replace with your actual channel ID
+BOT_LOG_CHANNEL_ID = XXXXXXXX  # Replace with your actual bot-log channel ID
+GUILD_ID = XXXXXXXX  # Replace with your actual guild ID
+COMMAND_CHANNEL_ID = XXXXXXXX  # The command channel ID where !calc can be used
+ACCOUNT_AGE_LIMIT = timedelta(days=5)
+SPAM_THRESHOLD = 4
+SPAM_TIMEOUT = timedelta(minutes=15)
 CHANNEL_IDS = {
-    "Max Supply:": 1248301536887705750,
-    "Mined Coins:": 1248371053902958707,
-    "Mined Supply:": 1248371154616455199,
-    "Nethash:": 1248371213483376812,
-    "Blockreward:": 1248371229640102050,
-    "Next Reward:": 1248371333092343971,
-    "Next Reduction:": 1248371393285062807
+    "Max Supply:": XXXXXXXX,
+    "Mined Coins:": XXXXXXXX,
+    "Mined Supply:": XXXXXXXX,
+    "Nethash:": XXXXXXXX,
+    "Blockreward:": XXXXXXXX,
+    "Next Reward:": XXXXXXXX,
+    "Next Reduction:": XXXXXXXX,
+    "Price": XXXXXXXX,
+    "mcap": XXXXXXXX
 }
 
+# Variables
+user_message_history = defaultdict(lambda: deque(maxlen=SPAM_THRESHOLD))
+user_warned = {}
+
+# Event handlers and commands
+@bot.event
+async def on_ready():
+    logging.info(f'Logged in as {bot.user}')
+    bot.loop.create_task(background_task())
+
+@bot.event
+async def on_member_join(member):
+    logging.info(f"Member joined: {member.name} (ID: {member.id})")
+    account_age = datetime.now(timezone.utc) - member.created_at
+    await log_action(member.guild, f"Member joined: {member.name} (ID: {member.id}), Account age: {account_age}")
+    if account_age < ACCOUNT_AGE_LIMIT:
+        await handle_suspicious_change(member, "Account age less than 5 days")
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    logging.debug(f"Received message from {message.author.name} (ID: {message.author.id}): {message.content}")
+    logging.debug(f"Message author's display name: {message.author.display_name}")
+
+    await check_display_name(message.author)
+    await check_message_content(message)
+    await check_spam(message)
+
+    await bot.process_commands(message)
+
+async def check_display_name(member):
+    flagged_keywords = [
+        "" # set your keywords here "Word1", "Word2"...
+    ]
+    if any(keyword.lower() in member.display_name.lower() for keyword in flagged_keywords):
+        logging.debug(f"Flagged keyword found in display name: {member.display_name}")
+        await handle_suspicious_change(member, "Display name contains flagged keyword")
+
+async def check_message_content(message):
+    banned_keywords = [
+        "" # set your keywords here "Word1", "Word2"...
+    ]
+    if any(keyword.lower() in message.content.lower() for keyword in banned_keywords):
+        logging.debug(f"Banned keyword found in message: {message.content}")
+        await handle_banned_keyword(message)
+
+async def check_spam(message):
+    user_history = user_message_history[message.author.id]
+    user_history.append(message.content)
+    now = datetime.now(timezone.utc)
+    if len(user_history) == SPAM_THRESHOLD and all(msg == message.content for msg in user_history):
+        if message.author.id not in user_warned or (now - user_warned[message.author.id]) > SPAM_TIMEOUT:
+            user_warned[message.author.id] = now
+            await message.channel.send(f"{message.author.mention} has been timed out for 15 minutes for spamming the same message multiple times in a row.")
+            logging.info(f"User {message.author} timed out for spamming.")
+            user_message_history[message.author.id].clear()
+            try:
+                await message.author.timeout(SPAM_TIMEOUT, reason="Spamming the same message multiple times in a row.")
+            except Exception as e:
+                logging.error(f"Failed to timeout user {message.author}: {e}")
+
+async def handle_suspicious_change(member, reason):
+    now = datetime.now(timezone.utc)
+    account_age = now - member.created_at
+
+    if account_age < ACCOUNT_AGE_LIMIT:
+        await send_dm(member, f"You have been kicked from the server due to suspicious activity related to a flagged {reason}.")
+        await asyncio.sleep(1)
+        await member.kick(reason=reason)
+        logging.warning(f"Kicked {member.name} due to {reason} (ID: {member.id})")
+        await log_action(member.guild, f"Kicked {member.name} due to {reason} (ID: {member.id})")
+    else:
+        await send_dm(member, f"You have been banned from the server due to suspicious activity related to a flagged {reason}.")
+        await asyncio.sleep(1)
+        await member.ban(reason=reason)
+        logging.warning(f"Banned {member.name} due to {reason} (ID: {member.id})")
+        await log_action(member.guild, f"Banned {member.name} due to {reason} (ID: {member.id})")
+
+    await delete_recent_messages(member.guild, member.id, timedelta(days=7))
+
+async def handle_banned_keyword(message):
+    await send_dm(message.author, f"Your message in the server contained banned content and was deleted.")
+    await asyncio.sleep(1)
+    await message.guild.ban(message.author, reason="Message contained banned content.")
+    logging.warning(f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id})")
+    await log_action(message.guild, f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id})")
+    await delete_recent_messages(message.guild, message.author.id, timedelta(days=7))
+
+async def send_dm(user, message):
+    try:
+        await user.send(message)
+    except discord.Forbidden:
+        logging.warning(f"Could not send DM to {user.name} (ID: {user.id})")
+
+async def log_action(guild, action):
+    log_channel = guild.get_channel(BOT_LOG_CHANNEL_ID)
+    if log_channel:
+        await log_channel.send(action)
+
+async def delete_recent_messages(guild, user_id, time_delta):
+    after = datetime.now(timezone.utc) - time_delta
+    for channel in guild.text_channels:
+        async for message in channel.history(after=after):
+            if message.author.id == user_id:
+                await message.delete()
+
+async def background_task():
+    await set_category_name()
+    await set_max_supply()
+    await update_channels()
+
 async def set_category_name():
-    await client.wait_until_ready()
-    guild = discord.utils.get(client.guilds, name="Spectre Network")
-    
+    await bot.wait_until_ready()
+    guild = bot.get_guild(GUILD_ID)
     if guild:
         category = discord.utils.get(guild.categories, id=CATEGORY_ID)
         if category:
-            await category.edit(name=CATEGORY_NAME)
-            logging.info(f"Category name set to {CATEGORY_NAME}")
-        else:
-            logging.info(f"Category with ID {CATEGORY_ID} not found")
+            await category.edit(name="--Spectre Network Stats--")
+            logging.info(f"Category name set to --Spectre Network Stats--")
 
 async def set_max_supply():
     global MAX_SUPPLY
     MAX_SUPPLY = await get_max_supply()
-    await client.wait_until_ready()
-    guild = discord.utils.get(client.guilds, name="Spectre Network")
-    
-    if guild:
+    await bot.wait_until_ready()
+    guild = bot.get_guild(GUILD_ID)
+    if guild and MAX_SUPPLY:
         channel_id = CHANNEL_IDS.get("Max Supply:")
         new_name = f"Max Supply: {MAX_SUPPLY / 1e9:.3f} billion"
         await update_or_create_channel(guild, channel_id, "Max Supply:", new_name)
 
 async def update_channels():
-    await client.wait_until_ready()
-    guild = discord.utils.get(client.guilds, name="Spectre Network")
-    
+    await bot.wait_until_ready()
+    guild = bot.get_guild(GUILD_ID)
     if guild:
         while True:
-            await update_channel(guild, "Mined Coins:", get_circulating_supply, True)
-            await update_channel(guild, "Mined Supply:", get_circulating_supply, True, True)
-            await update_channel(guild, "Nethash:", get_hashrate, convert_hashrate=True)
-            await update_channel(guild, "Blockreward:", get_blockreward)
-            await update_channel(guild, "Next Reward:", get_halving_data, next_reward=True)
-            await update_channel(guild, "Next Reduction:", get_halving_data, next_reduction=True)
-            await update_member_count(guild, ROLE_ID, MEMBER_COUNT_CHANNEL_ID)
-            await asyncio.sleep(300)  # Cooldown after updating all channels
+            try:
+                await update_channel(guild, "Mined Coins:", get_circulating_supply, calculate_supply_percentage=True)
+                await update_channel(guild, "Mined Supply:", get_circulating_supply, supply_percentage=True)
+                await update_channel(guild, "Nethash:", get_hashrate, convert_hashrate=True)
+                await update_channel(guild, "Blockreward:", get_blockreward)
+                await update_channel(guild, "Next Reward:", get_halving_data, next_reward=True)
+                await update_channel(guild, "Next Reduction:", get_halving_data, next_reduction=True)
+                await update_channel(guild, "Price", get_price_data)
+                await update_channel(guild, "mcap", get_market_cap)
+                await update_member_count(guild, ROLE_ID, MEMBER_COUNT_CHANNEL_ID)
+            except Exception as e:
+                logging.error(f"Error updating channels: {e}")
+            await asyncio.sleep(400)
 
 async def update_member_count(guild, role_id, channel_id):
     role = guild.get_role(role_id)
@@ -116,16 +198,14 @@ async def update_member_count(guild, role_id, channel_id):
         if channel:
             await channel.edit(name=new_name)
             logging.info(f"Updated member count channel to {new_name}")
-        else:
-            logging.warning(f"Channel with ID {channel_id} not found")
 
 async def update_channel(guild, channel_name, api_call, calculate_supply_percentage=False, supply_percentage=False, next_reward=False, next_reduction=False, convert_hashrate=False):
     data = await api_call()
-    
+
     if calculate_supply_percentage or supply_percentage:
         circulating_supply = data
         mined_supply_percentage = (circulating_supply / MAX_SUPPLY) * 100
-    
+
     if convert_hashrate:
         hashrate = data * 1e6  # Convert to MH/s
         new_name = f"Nethash: {hashrate:.2f} MH/s"
@@ -135,6 +215,11 @@ async def update_channel(guild, channel_name, api_call, calculate_supply_percent
         new_name = f"{data['nextHalvingDate']}"
     elif supply_percentage:
         new_name = f"Mined Supply: {mined_supply_percentage:.2f}%"
+    elif channel_name == "Price":
+        new_name = f"Price: {data} USDT"
+    elif channel_name == "mcap":
+        market_cap = round(data / 1000)
+        new_name = f"Mcap: {market_cap}k USDT"
     else:
         if channel_name == "Mined Coins:":
             new_name = f"{channel_name} {data / 1e6:.1f} mio"
@@ -170,15 +255,127 @@ async def update_or_create_channel(guild, channel_id, channel_name, new_name):
             logging.warning(f"Rate limited. Retrying in {retry_after} seconds.")
             await asyncio.sleep(retry_after)
             await update_or_create_channel(guild, channel_id, channel_name, new_name)
+    except Exception as e:
+        logging.error(f"Error creating/updating channel {channel_name}: {e}")
 
-async def background_task():
-    await set_category_name()
-    await set_max_supply()
-    await update_channels()
+# API functions
+async def get_data(url, headers={'accept': 'application/json'}, as_json=True):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                return await response.json() if as_json else await response.text()
+            else:
+                logging.error(f"Failed to fetch data from {url}: {response.status}")
+                return None
 
-@client.event
-async def on_ready():
-    logging.info(f'Logged in as {client.user}')
-    client.loop.create_task(background_task())
+async def get_max_supply():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/coinsupply/max', headers={'accept': 'text/plain'}) as response:
+            max_supply = float(await response.text())
+            logging.info(f"Max supply fetched: {max_supply}")
+            return max_supply
 
-client.run(TOKEN)
+async def get_circulating_supply():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/coinsupply/circulating?in_billion=false', headers={'accept': 'text/plain'}) as response:
+            circulating_supply = float(await response.text())
+            logging.info(f"Circulating supply fetched: {circulating_supply}")
+            return circulating_supply
+
+async def get_hashrate():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/hashrate?stringOnly=false', headers={'accept': 'application/json'}) as response:
+            hashrate = (await response.json())['hashrate']
+            logging.info(f"Hashrate fetched: {hashrate}")
+            return hashrate
+
+async def get_blockreward():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/blockreward?stringOnly=false', headers={'accept': 'application/json'}) as response:
+            blockreward = (await response.json())['blockreward']
+            logging.info(f"Blockreward fetched: {blockreward}")
+            return blockreward
+
+async def get_halving_data():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/halving', headers={'accept': 'application/json'}) as response:
+            halving_data = await response.json()
+            logging.info(f"Halving data fetched: {halving_data}")
+            return halving_data
+
+async def get_price_data():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/price?stringOnly=false', headers={'accept': 'application/json'}) as response:
+            last_price = (await response.json())['price']
+            logging.info(f"Last price fetched: {last_price}")
+            return last_price
+
+async def get_market_cap():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.spectre-network.org/info/marketcap?stringOnly=false', headers={'accept': 'application/json'}) as response:
+            market_cap = (await response.json())['marketcap']
+            logging.info(f"Market cap fetched: {market_cap}")
+            return market_cap
+
+# Define the !calc command
+@bot.command(name='calc')
+async def calc(ctx, hashrate: float = None):
+    if ctx.channel.id != COMMAND_CHANNEL_ID:
+        await ctx.send(f"This command can only be used in the ⛏︱calculator channel.")
+        return
+    
+    if hashrate is None:
+        await ctx.send("Usage: !calc <hashrate_in_kH/s>")
+        return
+    logging.debug(f"Calc command received with hashrate: {hashrate} kH/s")
+
+    blockreward, network_hashrate_ths = await fetch_network_info()
+    if blockreward is not None and network_hashrate_ths is not None:
+        own_hashrate_ths = hashrate / 1_000_000_000  # Convert kH/s to TH/s
+        percent_of_network = own_hashrate_ths / float(network_hashrate_ths)
+        network_hashrate_mhs = float(network_hashrate_ths) * 1_000_000  # Convert TH/s to MH/s
+
+        blocks_per_day = 86_400  # Number of blocks per day
+        total_SPR_per_day = blocks_per_day * blockreward
+
+        rewards = get_mining_rewards(blockreward, percent_of_network)
+        reward_message = (f"Current Network Hashrate: {network_hashrate_mhs:.2f} MH/s\n"
+                        f"Total Network SPR Mined per Day: {total_SPR_per_day:.2f} SPR\n"
+                        f"Current Blockreward: {blockreward} SPR\n"
+                        f"Your Portion of the Network Hashrate: {percent_of_network:.9f} ({percent_of_network*100:.9f}%)\n")
+        for period, reward in rewards.items():
+            reward_message += f"Estimated mining reward per {period}: {reward:.6f} SPR\n"
+
+        await ctx.send(reward_message)
+    else:
+        await ctx.send("Failed to retrieve network information. Please try again later.")
+
+async def fetch_network_info():
+    try:
+        async with aiohttp.ClientSession() as session:
+            blockreward_response = await session.get('https://api.spectre-network.org/info/blockreward?stringOnly=false', headers={'accept': 'application/json'})
+            blockreward = (await blockreward_response.json()).get('blockreward')
+
+            hashrate_response = await session.get('https://api.spectre-network.org/info/hashrate?stringOnly=false', headers={'accept': 'application/json'})
+            network_hashrate = (await hashrate_response.json()).get('hashrate')  # in TH/s
+
+            return blockreward, network_hashrate
+    except Exception as e:
+        logging.error(f"An error occurred while fetching network info: {e}")
+        return None, None
+
+def rewards_in_range(blockreward, blocks):
+    return blockreward * blocks
+
+def get_mining_rewards(blockreward, percent_of_network):
+    rewards = dict()
+    rewards['second'] = rewards_in_range(blockreward, 1) * percent_of_network
+    rewards['minute'] = rewards_in_range(blockreward, 60) * percent_of_network
+    rewards['hour'] = rewards_in_range(blockreward, 60*60) * percent_of_network
+    rewards['day'] = rewards_in_range(blockreward, 60*60*24) * percent_of_network
+    rewards['week'] = rewards_in_range(blockreward, 60*60*24*7) * percent_of_network
+    rewards['month'] = rewards_in_range(blockreward, 60*60*24*(365.25/12)) * percent_of_network
+    rewards['year'] = rewards_in_range(blockreward, 60*60*24*365.25) * percent_of_network
+    return rewards
+
+bot.run(TOKEN)
