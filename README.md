@@ -97,6 +97,14 @@ Invite the bot to your Discord server and ensure it has permissions to manage ch
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
+## Development Fund
+
+The devfund is a fund managed by the Spectre community in order to fund Spectre development. Please consider a donation to support ongoing and future projects.
+
+```
+spectre:qrxf48dgrdkjxllxczek3uweuldtan9nanzjsavk0ak9ynwn0zsayjjh7upez
+```
+
 ## License
 
 This project is licensed under the MIT License.
