@@ -61,8 +61,8 @@ Keep in mind that this calculation is an estimate. Your actual block rewards can
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/spectre-project/SpectreNetworkDiscordStatsBot.git
-    cd SpectreNetworkDiscordStatsBot
+    git clone https://github.com/spectre-project/discord-stats-bot.git
+    cd discord-stats-bot
     ```
 
 2. Install the required Python packages:
@@ -87,7 +87,7 @@ Keep in mind that this calculation is an estimate. Your actual block rewards can
 - **ROLE_ID:** The ID of the role whose members are counted.
 - **MEMBER_COUNT_CHANNEL_ID:** The ID of the channel where the member count is displayed.
 - **BOT_LOG_CHANNEL_ID:** The ID of the channel where the bot logs actions.
-- **COMMAND_CHANNEL_ID** The command channel ID where !calc can be used
+- **COMMAND_CHANNEL_ID:** The command channel ID where !calc can be used
 
 ## Usage
 
