@@ -23,9 +23,10 @@ MEMBER_COUNT_CHANNEL_ID = XXXXXXXX  # Replace with your actual channel ID
 BOT_LOG_CHANNEL_ID = XXXXXXXX  # Replace with your actual bot-log channel ID
 GUILD_ID = XXXXXXXX  # Replace with your actual guild ID
 COMMAND_CHANNEL_ID = XXXXXXXX  # The command channel ID where !calc can be used
-ACCOUNT_AGE_LIMIT = timedelta(days=5)
-SPAM_THRESHOLD = 4
+ACCOUNT_AGE_LIMIT = timedelta(days=3)
+SPAM_THRESHOLD = 3
 SPAM_TIMEOUT = timedelta(minutes=15)
+EXCLUDED_CHANNEL_ID = XXXXXXXX  # The channel ID to exclude from spam checks
 CHANNEL_IDS = {
     "Max Supply:": XXXXXXXX,
     "Mined Coins:": XXXXXXXX,
@@ -87,6 +88,10 @@ async def check_message_content(message):
         await handle_banned_keyword(message)
 
 async def check_spam(message):
+    # Exclude the specific channel from spam checks
+    if message.channel.id == EXCLUDED_CHANNEL_ID:
+        return
+
     user_history = user_message_history[message.author.id]
     user_history.append(message.content)
     now = datetime.now(timezone.utc)

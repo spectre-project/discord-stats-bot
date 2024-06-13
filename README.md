@@ -88,6 +88,7 @@ Keep in mind that this calculation is an estimate. Your actual block rewards can
 - **MEMBER_COUNT_CHANNEL_ID:** The ID of the channel where the member count is displayed.
 - **BOT_LOG_CHANNEL_ID:** The ID of the channel where the bot logs actions.
 - **COMMAND_CHANNEL_ID:** The command channel ID where !calc can be used
+- **EXCLUDED_CHANNEL_ID:** The channel ID to exclude from spam checks
 
 ## Usage
 
