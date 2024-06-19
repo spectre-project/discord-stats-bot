@@ -334,8 +334,8 @@ async def calc(ctx, hashrate: float = None):
         return
     logging.debug(f"Calc command received with hashrate: {hashrate} kH/s")
 
-    blockreward, network_hashrate_ths = await fetch_network_info()
-    if blockreward is not None and network_hashrate_ths is not None:
+    blockreward, network_hashrate_ths, spr_price = await fetch_network_info_and_price()
+    if blockreward is not None and network_hashrate_ths is not None and spr_price is not None:
         own_hashrate_ths = hashrate / 1_000_000_000  # Convert kH/s to TH/s
         percent_of_network = own_hashrate_ths / float(network_hashrate_ths)
         network_hashrate_mhs = float(network_hashrate_ths) * 1_000_000  # Convert TH/s to MH/s
@@ -343,19 +343,23 @@ async def calc(ctx, hashrate: float = None):
         blocks_per_day = 86_400  # Number of blocks per day
         total_SPR_per_day = blocks_per_day * blockreward
 
+        reward_message = (f"**Current Network Hashrate:** {network_hashrate_mhs:.2f} MH/s\n"
+                          f"**Total Network SPR Mined per Day:** {total_SPR_per_day:.2f} SPR\n"
+                          f"**Current Blockreward:** {blockreward} SPR\n"
+                          f"**Current Price (USD per SPR):** {spr_price:.4f} USD\n"
+                          f"**Your Portion of the Network Hashrate:** {percent_of_network:.9f} ({percent_of_network*100:.9f}%)\n\n"
+                          f"**Estimated Mining Rewards:**\n")
+        
         rewards = get_mining_rewards(blockreward, percent_of_network)
-        reward_message = (f"Current Network Hashrate: {network_hashrate_mhs:.2f} MH/s\n"
-                        f"Total Network SPR Mined per Day: {total_SPR_per_day:.2f} SPR\n"
-                        f"Current Blockreward: {blockreward} SPR\n"
-                        f"Your Portion of the Network Hashrate: {percent_of_network:.9f} ({percent_of_network*100:.9f}%)\n")
         for period, reward in rewards.items():
-            reward_message += f"Estimated mining reward per {period}: {reward:.6f} SPR\n"
+            profit_usd = reward * spr_price
+            reward_message += f"- {period}: {reward:.6f} SPR ({profit_usd:.5f} USD)\n"
 
         await ctx.send(reward_message)
     else:
-        await ctx.send("Failed to retrieve network information. Please try again later.")
+        await ctx.send("Failed to retrieve network information or SPR price. Please try again later.")
 
-async def fetch_network_info():
+async def fetch_network_info_and_price():
     try:
         async with aiohttp.ClientSession() as session:
             blockreward_response = await session.get('https://api.spectre-network.org/info/blockreward?stringOnly=false', headers={'accept': 'application/json'})
@@ -364,23 +368,26 @@ async def fetch_network_info():
             hashrate_response = await session.get('https://api.spectre-network.org/info/hashrate?stringOnly=false', headers={'accept': 'application/json'})
             network_hashrate = (await hashrate_response.json()).get('hashrate')  # in TH/s
 
-            return blockreward, network_hashrate
+            price_response = await session.get('https://api.spectre-network.org/info/price?stringOnly=false', headers={'accept': 'application/json'})
+            spr_price = (await price_response.json()).get('price')  # price in USD
+
+            return blockreward, network_hashrate, spr_price
     except Exception as e:
-        logging.error(f"An error occurred while fetching network info: {e}")
-        return None, None
+        logging.error(f"An error occurred while fetching network info or price: {e}")
+        return None, None, None
 
 def rewards_in_range(blockreward, blocks):
     return blockreward * blocks
 
 def get_mining_rewards(blockreward, percent_of_network):
     rewards = dict()
-    rewards['second'] = rewards_in_range(blockreward, 1) * percent_of_network
-    rewards['minute'] = rewards_in_range(blockreward, 60) * percent_of_network
-    rewards['hour'] = rewards_in_range(blockreward, 60*60) * percent_of_network
-    rewards['day'] = rewards_in_range(blockreward, 60*60*24) * percent_of_network
-    rewards['week'] = rewards_in_range(blockreward, 60*60*24*7) * percent_of_network
-    rewards['month'] = rewards_in_range(blockreward, 60*60*24*(365.25/12)) * percent_of_network
-    rewards['year'] = rewards_in_range(blockreward, 60*60*24*365.25) * percent_of_network
+    rewards['Second'] = rewards_in_range(blockreward, 1) * percent_of_network
+    rewards['Minute'] = rewards_in_range(blockreward, 60) * percent_of_network
+    rewards['Hour'] = rewards_in_range(blockreward, 60*60) * percent_of_network
+    rewards['Day'] = rewards_in_range(blockreward, 60*60*24) * percent_of_network
+    rewards['Week'] = rewards_in_range(blockreward, 60*60*24*7) * percent_of_network
+    rewards['Month'] = rewards_in_range(blockreward, 60*60*24*(365.25/12)) * percent_of_network
+    rewards['Year'] = rewards_in_range(blockreward, 60*60*24*365.25) * percent_of_network
     return rewards
 
 bot.run(TOKEN)
