@@ -36,7 +36,8 @@ CHANNEL_IDS = {
     "Next Reward:": XXXXXXXX,
     "Next Reduction:": XXXXXXXX,
     "Price": XXXXXXXX,
-    "mcap": XXXXXXXX
+    "mcap": XXXXXXXX,
+    "24h Volume:": XXXXXXXX
 }
 
 # Variables
@@ -175,6 +176,15 @@ async def set_max_supply():
         new_name = f"Max Supply: {MAX_SUPPLY / 1e9:.3f} billion"
         await update_or_create_channel(guild, channel_id, "Max Supply:", new_name)
 
+async def get_24h_volume():
+    async with aiohttp.ClientSession() as session:
+        async with session.get('https://api.coinpaprika.com/v1/tickers/spr-spectre-network', headers={'accept': 'application/json'}) as response:
+            data = await response.json()
+            volume_24h = data['quotes']['USD']['volume_24h']
+            logging.info(f"24h volume fetched: {volume_24h}")
+            return volume_24h
+
+
 async def update_channels():
     await bot.wait_until_ready()
     guild = bot.get_guild(GUILD_ID)
@@ -189,6 +199,7 @@ async def update_channels():
                 await update_channel(guild, "Next Reduction:", get_halving_data, next_reduction=True)
                 await update_channel(guild, "Price", get_price_data)
                 await update_channel(guild, "mcap", get_market_cap)
+                await update_channel(guild, "24h Volume:", get_24h_volume, is_volume=True)
                 await update_member_count(guild, ROLE_ID, MEMBER_COUNT_CHANNEL_ID)
             except Exception as e:
                 logging.error(f"Error updating channels: {e}")
@@ -204,7 +215,7 @@ async def update_member_count(guild, role_id, channel_id):
             await channel.edit(name=new_name)
             logging.info(f"Updated member count channel to {new_name}")
 
-async def update_channel(guild, channel_name, api_call, calculate_supply_percentage=False, supply_percentage=False, next_reward=False, next_reduction=False, convert_hashrate=False):
+async def update_channel(guild, channel_name, api_call, calculate_supply_percentage=False, supply_percentage=False, next_reward=False, next_reduction=False, convert_hashrate=False, is_volume=False):
     data = await api_call()
 
     if calculate_supply_percentage or supply_percentage:
@@ -225,6 +236,8 @@ async def update_channel(guild, channel_name, api_call, calculate_supply_percent
     elif channel_name == "mcap":
         market_cap = round(data / 1000)
         new_name = f"Mcap: {market_cap}k USDT"
+    elif is_volume:
+        new_name = f"24h Volume: ${data:.2f}"
     else:
         if channel_name == "Mined Coins:":
             new_name = f"{channel_name} {data / 1e6:.1f} mio"
