@@ -1,10 +1,15 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+from discord import app_commands
 import aiohttp
 import asyncio
-import logging
+import logging, os
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
+from dotenv import find_dotenv, load_dotenv
+
+# Load environment variables
+load_dotenv(find_dotenv())
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -13,22 +18,22 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(mes
 intents = discord.Intents.all()
 
 # Initialize bot
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', help_command=None, intents=intents)
 
 # Constants
-TOKEN = 'XXXXXXXX'  # Replace with your bot token
-CATEGORY_ID = XXXXXXXX  # Replace with your actual category ID
-ROLE_ID = XXXXXXXX  # Replace with your actual role ID
-MEMBER_COUNT_CHANNEL_ID = XXXXXXXX  # Replace with your actual channel ID
-BOT_LOG_CHANNEL_ID = XXXXXXXX  # Replace with your actual bot-log channel ID
-GUILD_ID = XXXXXXXX  # Replace with your actual guild ID
-COMMAND_CHANNEL_ID = XXXXXXXX  # The command channel ID where !calc can be used
-ACCOUNT_AGE_LIMIT = timedelta(days=3)
-SPAM_THRESHOLD = 3
+TOKEN = os.environ.get('TOKEN')  # Grabs the bot token from the environment file
+CATEGORY_ID = os.environ.get('CATEGORY_ID')  # Grabs the category ID from the environment file
+ROLE_ID = os.environ.get('ROLE_ID')  # Grabs the role ID from the environment file
+MEMBER_COUNT_CHANNEL_ID = os.environ.get('MEMBER_COUNT_CHANNEL_ID')  # Grabs the member count channel ID from the environment file
+BOT_LOG_CHANNEL_ID = os.environ.get('BOT_LOG_CHANNEL_ID')  # Grabs the bot-log channel ID from the environment file
+GUILD_ID = os.environ.get('GUILD_ID')  # Grabs the guild ID from the environment file
+COMMAND_CHANNEL_ID = os.environ.get('COMMAND_CHANNEL_ID')  # Grabs the command channel ID from the environment file
+ACCOUNT_AGE_LIMIT = timedelta(days=int(os.environ.get('ACCOUNT_AGE_LIMIT')))
+SPAM_THRESHOLD = int(os.environ.get('SPAM_THRESHOLD'))
 SPAM_TIMEOUT = timedelta(minutes=15)
-EXCLUDED_CHANNEL_ID = XXXXXXXX  # The channel ID to exclude from spam checks
+EXCLUDED_CHANNEL_ID = os.environ.get('EXCLUDED_CHANNEL_ID')  # Grabs the excluded channel ID from the environment file
 CHANNEL_IDS = {
-    "Max Supply:": XXXXXXXX,
+    "Max Supply:": XXXXXXX,
     "Mined Coins:": XXXXXXXX,
     "Mined Supply:": XXXXXXXX,
     "Nethash:": XXXXXXXX,
@@ -44,11 +49,30 @@ CHANNEL_IDS = {
 user_message_history = defaultdict(lambda: deque(maxlen=SPAM_THRESHOLD))
 user_warned = {}
 
+# Status change for some fun little things to be displayed, inside the bot's profile
+@tasks.loop(seconds=5)
+async def changeStatus():
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="with SpectreCoins!"))
+    await asyncio.sleep(3)
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="for /help command!"))
+    await asyncio.sleep(3)
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.competing, name="Spectre Network!"))
+    await asyncio.sleep(3)
+    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="active people!"))
+    await asyncio.sleep(3)
+
 # Event handlers and commands
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user}')
+    changeStatus.start()
     bot.loop.create_task(background_task())
+    try:
+        synced = await bot.tree.sync()
+        logging.info(f"Successfully Synced {len(synced)} commands..")
+    except Exception:
+        logging.info("Failed to sync commands")
+    logging.info("Enabled status updates..")
 
 @bot.event
 async def on_member_join(member):
@@ -183,7 +207,6 @@ async def get_24h_volume():
             volume_24h = data['quotes']['USD']['volume_24h']
             logging.info(f"24h volume fetched: {volume_24h}")
             return volume_24h
-
 
 async def update_channels():
     await bot.wait_until_ready()
@@ -336,14 +359,15 @@ async def get_market_cap():
             return market_cap
 
 # Define the !calc command
-@bot.command(name='calc')
-async def calc(ctx, hashrate: float = None):
-    if ctx.channel.id != COMMAND_CHANNEL_ID:
-        await ctx.send(f"This command can only be used in the <#1250496462819950667> channel.")
+@bot.tree.command(name="calc", description="Calculate rewards based on your hashrate in (Kh/s).")
+@app_commands.guild_only()
+async def calc(interaction: discord.Interaction, hashrate: float = None):
+    if interaction.channel_id != COMMAND_CHANNEL_ID:
+        await interaction.response.send_message(f"This command can only be used in the <#1250496462819950667> channel.", ephemeral=True)
         return
     
     if hashrate is None:
-        await ctx.send("Usage: !calc <hashrate_in_kH/s>")
+        await interaction.response.send_message("Usage: /calc <hashrate_in_kH/s>", ephemeral=True)
         return
     logging.debug(f"Calc command received with hashrate: {hashrate} kH/s")
 
@@ -368,9 +392,9 @@ async def calc(ctx, hashrate: float = None):
             profit_usd = reward * spr_price
             reward_message += f"- {period}: {reward:.6f} SPR ({profit_usd:.5f} USD)\n"
 
-        await ctx.send(reward_message)
+        await interaction.response.send_message(reward_message)
     else:
-        await ctx.send("Failed to retrieve network information or SPR price. Please try again later.")
+        await interaction.response.send_message("Failed to retrieve network information or SPR price. Please try again later.", ephemeral=True)
 
 async def fetch_network_info_and_price():
     try:
