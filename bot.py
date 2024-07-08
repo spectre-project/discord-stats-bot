@@ -339,7 +339,7 @@ async def get_market_cap():
 @bot.command(name='calc')
 async def calc(ctx, hashrate: float = None):
     if ctx.channel.id != COMMAND_CHANNEL_ID:
-        await ctx.send(f"This command can only be used in the ⛏︱calculator channel.")
+        await ctx.send(f"This command can only be used in the <#1250496462819950667> channel.")
         return
     
     if hashrate is None:
