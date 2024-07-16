@@ -24,7 +24,7 @@ BOT_LOG_CHANNEL_ID = XXXXXXXX  # Replace with your actual bot-log channel ID
 GUILD_ID = XXXXXXXX  # Replace with your actual guild ID
 COMMAND_CHANNEL_ID = XXXXXXXX  # The command channel ID where !calc can be used
 ACCOUNT_AGE_LIMIT = timedelta(days=3)
-SPAM_THRESHOLD = 3
+SPAM_THRESHOLD = 5
 SPAM_TIMEOUT = timedelta(minutes=15)
 EXCLUDED_CHANNEL_ID = XXXXXXXX  # The channel ID to exclude from spam checks
 CHANNEL_IDS = {
@@ -56,7 +56,7 @@ async def on_member_join(member):
     account_age = datetime.now(timezone.utc) - member.created_at
     await log_action(member.guild, f"Member joined: {member.name} (ID: {member.id}), Account age: {account_age}")
     if account_age < ACCOUNT_AGE_LIMIT:
-        await handle_suspicious_change(member, "Account age less than 5 days")
+        await handle_suspicious_change(member, "Account age less than 3 days")
 
 @bot.event
 async def on_message(message):
@@ -99,7 +99,7 @@ async def check_spam(message):
     if len(user_history) == SPAM_THRESHOLD and all(msg == message.content for msg in user_history):
         if message.author.id not in user_warned or (now - user_warned[message.author.id]) > SPAM_TIMEOUT:
             user_warned[message.author.id] = now
-            await message.channel.send(f"{message.author.mention} has been timed out for 15 minutes for spamming the same message multiple times in a row.")
+            await message.channel.send(f"{message.author.mention} You have been temporarily muted for 15 minutes due to spamming.")
             logging.info(f"User {message.author} timed out for spamming.")
             user_message_history[message.author.id].clear()
             try:
@@ -184,7 +184,6 @@ async def get_24h_volume():
             logging.info(f"24h volume fetched: {volume_24h}")
             return volume_24h
 
-
 async def update_channels():
     await bot.wait_until_ready()
     guild = bot.get_guild(GUILD_ID)
@@ -203,7 +202,7 @@ async def update_channels():
                 await update_member_count(guild, ROLE_ID, MEMBER_COUNT_CHANNEL_ID)
             except Exception as e:
                 logging.error(f"Error updating channels: {e}")
-            await asyncio.sleep(400)
+            await asyncio.sleep(500)
 
 async def update_member_count(guild, role_id, channel_id):
     role = guild.get_role(role_id)
@@ -232,7 +231,7 @@ async def update_channel(guild, channel_name, api_call, calculate_supply_percent
     elif supply_percentage:
         new_name = f"Mined Supply: {mined_supply_percentage:.2f}%"
     elif channel_name == "Price":
-        new_name = f"Price: {data} USDT"
+        new_name = f"Price: {data:.5f} USDT"
     elif channel_name == "mcap":
         market_cap = round(data / 1000)
         new_name = f"Mcap: {market_cap}k USDT"
@@ -360,13 +359,13 @@ async def calc(ctx, hashrate: float = None):
                           f"**Total Network SPR Mined per Day:** {total_SPR_per_day:.2f} SPR\n"
                           f"**Current Blockreward:** {blockreward} SPR\n"
                           f"**Current Price (USD per SPR):** {spr_price:.4f} USD\n"
-                          f"**Your Portion of the Network Hashrate:** {percent_of_network:.9f} ({percent_of_network*100:.9f}%)\n\n"
+                          f"**Your Portion of the Network Hashrate:** ({percent_of_network*100:.3f}%)\n\n"
                           f"**Estimated Mining Rewards:**\n")
         
         rewards = get_mining_rewards(blockreward, percent_of_network)
         for period, reward in rewards.items():
             profit_usd = reward * spr_price
-            reward_message += f"- {period}: {reward:.6f} SPR ({profit_usd:.5f} USD)\n"
+            reward_message += f"- {period}: {reward:.2f} SPR ({profit_usd:.3f} USD)\n"
 
         await ctx.send(reward_message)
     else:
@@ -394,8 +393,6 @@ def rewards_in_range(blockreward, blocks):
 
 def get_mining_rewards(blockreward, percent_of_network):
     rewards = dict()
-    rewards['Second'] = rewards_in_range(blockreward, 1) * percent_of_network
-    rewards['Minute'] = rewards_in_range(blockreward, 60) * percent_of_network
     rewards['Hour'] = rewards_in_range(blockreward, 60*60) * percent_of_network
     rewards['Day'] = rewards_in_range(blockreward, 60*60*24) * percent_of_network
     rewards['Week'] = rewards_in_range(blockreward, 60*60*24*7) * percent_of_network
