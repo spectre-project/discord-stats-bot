@@ -71,9 +71,21 @@ Keep in mind that this calculation is an estimate. Your actual block rewards can
     ```
 
 3. Configure the bot:
-    - Open the `bot.py` file.
-    - Replace `'X'` with your Discord bot token.
-    - Replace the `CATEGORY_ID`, `ROLE_ID`, `MEMBER_COUNT_CHANNEL_ID`, and `BOT_LOG_CHANNEL_ID` with your actual IDs.
+    - Rename the ``example.env`` to ``.env``.
+    - Open ``.env`` file with any text editor.
+    ```
+    TOKEN= # Bot Token
+    CATEGORY_ID= # Category ID
+    ROLE_ID= # Role ID
+    MEMBER_COUNT_CHANNEL_ID= # Member Count Channel ID
+    BOT_LOG_CHANNEL_ID= # Bot Log Channel ID
+    GUILD_ID= # Guild ID
+    COMMAND_CHANNEL_ID= # Command Channel ID
+    ACCOUNT_AGE_LIMIT=3 # Account Age Limit
+    SPAM_THRESHOLD=3 # Spam Threshold
+    ```
+    - Fill in your bot token next to the ``=`` sign in the first line.
+    - Fill in the `CATEGORY_ID`, `ROLE_ID`, `MEMBER_COUNT_CHANNEL_ID`, and `BOT_LOG_CHANNEL_ID` with your actual IDs.
 
 4. Run the bot:
     ```sh
