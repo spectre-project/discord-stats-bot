@@ -75,32 +75,14 @@ Keep in mind that this calculation is an estimate. Your actual block rewards can
     - Open ``.env`` file with any text editor.
     ```
     TOKEN= # Bot Token
-    CATEGORY_ID= # Category ID
-    ROLE_ID= # Role ID
-    MEMBER_COUNT_CHANNEL_ID= # Member Count Channel ID
-    BOT_LOG_CHANNEL_ID= # Bot Log Channel ID
-    GUILD_ID= # Guild ID
-    COMMAND_CHANNEL_ID= # Command Channel ID
-    ACCOUNT_AGE_LIMIT=3 # Account Age Limit
-    SPAM_THRESHOLD=3 # Spam Threshold
     ```
     - Fill in your bot token next to the ``=`` sign in the first line.
-    - Fill in the `CATEGORY_ID`, `ROLE_ID`, `MEMBER_COUNT_CHANNEL_ID`, and `BOT_LOG_CHANNEL_ID` with your actual IDs.
+    - Fill in the `CHANNEL_ID` with your actual IDs.
 
 4. Run the bot:
     ```sh
     python bot.py
     ```
-
-## Configuration
-
-- **CATEGORY_NAME:** The name of the category where the bot will update channel names.
-- **CATEGORY_ID:** The ID of the category where the bot will operate.
-- **ROLE_ID:** The ID of the role whose members are counted.
-- **MEMBER_COUNT_CHANNEL_ID:** The ID of the channel where the member count is displayed.
-- **BOT_LOG_CHANNEL_ID:** The ID of the channel where the bot logs actions.
-- **COMMAND_CHANNEL_ID:** The command channel ID where !calc can be used
-- **EXCLUDED_CHANNEL_ID:** The channel ID to exclude from spam checks
 
 ## Usage
 

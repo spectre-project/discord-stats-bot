@@ -1,15 +1,14 @@
 import discord
 from discord.ext import commands, tasks
-from discord import app_commands
 import aiohttp
 import asyncio
 import logging, os
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv(find_dotenv())
+load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -18,31 +17,31 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s:%(mes
 intents = discord.Intents.all()
 
 # Initialize bot
-bot = commands.Bot(command_prefix='!', help_command=None, intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Constants
 TOKEN = os.environ.get('TOKEN')  # Grabs the bot token from the environment file
-CATEGORY_ID = os.environ.get('CATEGORY_ID')  # Grabs the category ID from the environment file
-ROLE_ID = os.environ.get('ROLE_ID')  # Grabs the role ID from the environment file
-MEMBER_COUNT_CHANNEL_ID = os.environ.get('MEMBER_COUNT_CHANNEL_ID')  # Grabs the member count channel ID from the environment file
-BOT_LOG_CHANNEL_ID = os.environ.get('BOT_LOG_CHANNEL_ID')  # Grabs the bot-log channel ID from the environment file
-GUILD_ID = os.environ.get('GUILD_ID')  # Grabs the guild ID from the environment file
-COMMAND_CHANNEL_ID = os.environ.get('COMMAND_CHANNEL_ID')  # Grabs the command channel ID from the environment file
-ACCOUNT_AGE_LIMIT = timedelta(days=int(os.environ.get('ACCOUNT_AGE_LIMIT')))
-SPAM_THRESHOLD = int(os.environ.get('SPAM_THRESHOLD'))
+CATEGORY_ID = 1236812312921509959  # Replace with your actual category ID
+ROLE_ID = 1233113243741061241  # Replace with your actual role ID
+MEMBER_COUNT_CHANNEL_ID = 1248376416098189475  # Replace with your actual channel ID
+BOT_LOG_CHANNEL_ID = 1233113244386988127  # Replace with your actual bot-log channel ID
+GUILD_ID = 1233113243741061240  # Replace with your actual guild ID
+COMMAND_CHANNEL_ID = 1250496462819950667  # The command channel ID where !calc can be used
+ACCOUNT_AGE_LIMIT = timedelta(days=3)
+SPAM_THRESHOLD = 4
 SPAM_TIMEOUT = timedelta(minutes=15)
-EXCLUDED_CHANNEL_ID = os.environ.get('EXCLUDED_CHANNEL_ID')  # Grabs the excluded channel ID from the environment file
+EXCLUDED_CHANNEL_ID = 1234128577960742943  # The channel ID to exclude from spam checks
 CHANNEL_IDS = {
-    "Max Supply:": XXXXXXX,
-    "Mined Coins:": XXXXXXXX,
-    "Mined Supply:": XXXXXXXX,
-    "Nethash:": XXXXXXXX,
-    "Blockreward:": XXXXXXXX,
-    "Next Reward:": XXXXXXXX,
-    "Next Reduction:": XXXXXXXX,
-    "Price": XXXXXXXX,
-    "mcap": XXXXXXXX,
-    "24h Volume:": XXXXXXXX
+    "Max Supply:": 1248301536887705750,
+    "Mined Coins:": 1248371053902958707,
+    "Mined Supply:": 1248371154616455199,
+    "Nethash:": 1248371213483376812,
+    "Blockreward:": 1248371229640102050,
+    "Next Reward:": 1248371333092343971,
+    "Next Reduction:": 1248371393285062807,
+    "Price": 1250478880070832158,
+    "mcap": 1250478897154490501,
+    "24h Volume:": 1253447655716028477
 }
 
 # Variables
@@ -50,29 +49,30 @@ user_message_history = defaultdict(lambda: deque(maxlen=SPAM_THRESHOLD))
 user_warned = {}
 
 # Status change for some fun little things to be displayed, inside the bot's profile
-@tasks.loop(seconds=5)
-async def changeStatus():
-    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.playing, name="with SpectreCoins!"))
-    await asyncio.sleep(3)
-    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.watching, name="for /help command!"))
-    await asyncio.sleep(3)
-    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.competing, name="Spectre Network!"))
-    await asyncio.sleep(3)
-    await bot.change_presence(status=discord.Status.online, activity=discord.Activity(type=discord.ActivityType.listening, name="active people!"))
-    await asyncio.sleep(3)
+async def change_status():
+    statuses = [
+        discord.Activity(type=discord.ActivityType.listening, name="to node syncs!"),
+        discord.Activity(type=discord.ActivityType.watching, name="the latest block!"),
+        discord.Activity(type=discord.ActivityType.playing, name="with SpectreX!"),
+        discord.Activity(type=discord.ActivityType.listening, name="miners' chatter!"),
+        discord.Activity(type=discord.ActivityType.watching, name="block height increases!"),
+        discord.Activity(type=discord.ActivityType.playing, name="cryptographic algorithms!"),
+        discord.Activity(type=discord.ActivityType.watching, name="the blockchain grow!"),
+        discord.Activity(type=discord.ActivityType.playing, name="the hash war game!"),
+        discord.Activity(type=discord.ActivityType.competing, name="solving the next block!"),
+    ]
+
+    while True:
+        for status in statuses:
+            await bot.change_presence(status=discord.Status.online, activity=status)
+            await asyncio.sleep(15)
 
 # Event handlers and commands
 @bot.event
 async def on_ready():
     logging.info(f'Logged in as {bot.user}')
-    changeStatus.start()
+    bot.loop.create_task(change_status())
     bot.loop.create_task(background_task())
-    try:
-        synced = await bot.tree.sync()
-        logging.info(f"Successfully Synced {len(synced)} commands..")
-    except Exception:
-        logging.info("Failed to sync commands")
-    logging.info("Enabled status updates..")
 
 @bot.event
 async def on_member_join(member):
@@ -123,13 +123,17 @@ async def check_spam(message):
     if len(user_history) == SPAM_THRESHOLD and all(msg == message.content for msg in user_history):
         if message.author.id not in user_warned or (now - user_warned[message.author.id]) > SPAM_TIMEOUT:
             user_warned[message.author.id] = now
-            await message.channel.send(f"{message.author.mention} You have been temporarily muted for 15 minutes due to spamming.")
+            timeout_message = await message.channel.send(f"{message.author.mention} You have been temporarily muted for 15 minutes due to spamming.")
             logging.info(f"User {message.author} timed out for spamming.")
             user_message_history[message.author.id].clear()
             try:
                 await message.author.timeout(SPAM_TIMEOUT, reason="Spamming the same message multiple times in a row.")
             except Exception as e:
                 logging.error(f"Failed to timeout user {message.author}: {e}")
+
+            # remove timeout message after 20 minutes
+            await asyncio.sleep(20 * 60)
+            await timeout_message.delete()
 
 async def handle_suspicious_change(member, reason):
     now = datetime.now(timezone.utc)
@@ -359,15 +363,17 @@ async def get_market_cap():
             return market_cap
 
 # Define the !calc command
-@bot.tree.command(name="calc", description="Calculate rewards based on your hashrate in (Kh/s).")
-@app_commands.guild_only()
-async def calc(interaction: discord.Interaction, hashrate: float = None):
-    if interaction.channel_id != COMMAND_CHANNEL_ID:
-        await interaction.response.send_message(f"This command can only be used in the <#1250496462819950667> channel.", ephemeral=True)
+@bot.command(name='calc')
+async def calc(ctx, hashrate: float = None):
+    if ctx.channel.id != COMMAND_CHANNEL_ID:
+        # Send the message and then delete it after a short delay
+        msg = await ctx.send(f"This command can only be used in the <#1250496462819950667> channel.")
+        await asyncio.sleep(30)  # Wait for 30 seconds before deleting
+        await msg.delete()
         return
     
     if hashrate is None:
-        await interaction.response.send_message("Usage: /calc <hashrate_in_kH/s>", ephemeral=True)
+        await ctx.send("Usage: !calc <hashrate_in_kH/s>")
         return
     logging.debug(f"Calc command received with hashrate: {hashrate} kH/s")
 
@@ -392,9 +398,9 @@ async def calc(interaction: discord.Interaction, hashrate: float = None):
             profit_usd = reward * spr_price
             reward_message += f"- {period}: {reward:.2f} SPR ({profit_usd:.3f} USD)\n"
 
-        await interaction.response.send_message(reward_message)
+        await ctx.send(reward_message)
     else:
-        await interaction.response.send_message("Failed to retrieve network information or SPR price. Please try again later.", ephemeral=True)
+        await ctx.send("Failed to retrieve network information or SPR price. Please try again later.")
 
 async def fetch_network_info_and_price():
     try:
