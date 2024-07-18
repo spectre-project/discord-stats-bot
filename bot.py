@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import aiohttp
 import asyncio
 import logging, os
@@ -100,17 +100,21 @@ async def check_display_name(member):
     flagged_keywords = [
         "" # set your keywords here "Word1", "Word2"...
     ]
-    if any(keyword.lower() in member.display_name.lower() for keyword in flagged_keywords):
-        logging.debug(f"Flagged keyword found in display name: {member.display_name}")
-        await handle_suspicious_change(member, "Display name contains flagged keyword")
+    for keyword in flagged_keywords:
+        if keyword.lower() in member.display_name.lower():
+            logging.debug(f"Flagged keyword found in display name: {member.display_name}")
+            await handle_suspicious_change(member, f"Display name contains flagged keyword: {keyword}")
+            break
 
 async def check_message_content(message):
     banned_keywords = [
         "" # set your keywords here "Word1", "Word2"...
     ]
-    if any(keyword.lower() in message.content.lower() for keyword in banned_keywords):
-        logging.debug(f"Banned keyword found in message: {message.content}")
-        await handle_banned_keyword(message)
+    for keyword in banned_keywords:
+        if keyword.lower() in message.content.lower():
+            logging.debug(f"Banned keyword found in message: {message.content}")
+            await handle_banned_keyword(message, keyword)
+            break
 
 async def check_spam(message):
     # Exclude the specific channel from spam checks
@@ -140,13 +144,13 @@ async def handle_suspicious_change(member, reason):
     account_age = now - member.created_at
 
     if account_age < ACCOUNT_AGE_LIMIT:
-        await send_dm(member, f"You have been kicked from the server due to suspicious activity related to a flagged {reason}.")
+        await send_dm(member, f"You have been kicked from the server due to suspicious activity.")
         await asyncio.sleep(1)
         await member.kick(reason=reason)
         logging.warning(f"Kicked {member.name} due to {reason} (ID: {member.id})")
         await log_action(member.guild, f"Kicked {member.name} due to {reason} (ID: {member.id})")
     else:
-        await send_dm(member, f"You have been banned from the server due to suspicious activity related to a flagged {reason}.")
+        await send_dm(member, f"You have been banned from the server due to suspicious activity.")
         await asyncio.sleep(1)
         await member.ban(reason=reason)
         logging.warning(f"Banned {member.name} due to {reason} (ID: {member.id})")
@@ -154,12 +158,12 @@ async def handle_suspicious_change(member, reason):
 
     await delete_recent_messages(member.guild, member.id, timedelta(days=7))
 
-async def handle_banned_keyword(message):
+async def handle_banned_keyword(message, keyword):
     await send_dm(message.author, f"Your message in the server contained banned content and was deleted.")
     await asyncio.sleep(1)
-    await message.guild.ban(message.author, reason="Message contained banned content.")
-    logging.warning(f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id})")
-    await log_action(message.guild, f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id})")
+    await message.guild.ban(message.author, reason=f"Message contained banned content: {keyword}")
+    logging.warning(f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id}), keyword: {keyword}")
+    await log_action(message.guild, f"Banned {message.author.name} for sending a message with banned content (ID: {message.author.id}), keyword: {keyword}")
     await delete_recent_messages(message.guild, message.author.id, timedelta(days=7))
 
 async def send_dm(user, message):
