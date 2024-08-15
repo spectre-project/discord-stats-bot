@@ -1,5 +1,7 @@
 # Spectre Network Discord Stats Bot
 
+[![Join the Spectre Discord Server](https://img.shields.io/discord/1233113243741061240.svg?label=&logo=discord&logoColor=ffffff&color=5865F2)](https://discord.com/invite/FZPYpwszcF)
+
 This is a Discord bot that fetches and displays real-time statistics from the Spectre Network. It updates the channel names in a specific category with the latest data on max supply, circulating supply, hashrate, block rewards, and halving data. Additionally, it keeps track of the member count for a specified role and includes anti-spam features and a mining calculator command.
 
 ## Features
