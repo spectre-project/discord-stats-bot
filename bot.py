@@ -209,10 +209,11 @@ async def set_max_supply():
         await update_or_create_channel(guild, channel_id, "Max Supply:", new_name)
 
 async def get_24h_volume():
+    url = 'https://api.coingecko.com/api/v3/coins/spectre-network'
     async with aiohttp.ClientSession() as session:
-        async with session.get('https://api.coinpaprika.com/v1/tickers/spr-spectre-network', headers={'accept': 'application/json'}) as response:
+        async with session.get(url, headers={'accept': 'application/json'}) as response:
             data = await response.json()
-            volume_24h = data['quotes']['USD']['volume_24h']
+            volume_24h = data['market_data']['total_volume']['usd']
             logging.info(f"24h volume fetched: {volume_24h}")
             return volume_24h
 
