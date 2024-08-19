@@ -266,8 +266,8 @@ async def update_channel(guild, channel_name, api_call, calculate_supply_percent
     elif channel_name == "Price":
         new_name = f"Price: {data:.5f} USDT"
     elif channel_name == "mcap":
-        market_cap = round(data / 1000)
-        new_name = f"Mcap: {market_cap}k USDT"
+        market_cap = f"{data / 1e6:.3f}"
+        new_name = f"Mcap: {market_cap}mio USDT"
     elif is_volume:
         new_name = f"24h Volume: ${data:.2f}"
     else:
