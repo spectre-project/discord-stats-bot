@@ -33,10 +33,13 @@ GUILD_ID = 1233113243741061240  # Replace with your actual guild ID
 COMMAND_CHANNEL_ID = (
     1250496462819950667  # The command channel ID where !calc can be used
 )
-ACCOUNT_AGE_LIMIT = timedelta(days=3)
+ACCOUNT_AGE_LIMIT = timedelta(days=1)
 SPAM_THRESHOLD = 4
 SPAM_TIMEOUT = timedelta(minutes=15)
-EXCLUDED_CHANNEL_ID = 1234128577960742943  # The channel ID to exclude from spam checks
+EXCLUDED_CHANNEL_ID = [
+    1234128577960742943,
+    1250496462819950667,
+]  # The channel IDs to exclude from spam checks
 CHANNEL_IDS = {
     "Max Supply:": 1248301536887705750,
     "Mined Coins:": 1248371053902958707,
@@ -97,10 +100,10 @@ async def on_member_join(member):
     account_age = datetime.now(timezone.utc) - member.created_at
     await log_action(
         member.guild,
-        f"Member joined: {member.name} (ID: {member.id}), Account age: {account_age}",
+        f"Member joined: <@{member.id}> (ID: {member.id}), Account age: {account_age}",
     )
     if account_age < ACCOUNT_AGE_LIMIT:
-        await handle_suspicious_change(member, "Account age less than 3 days")
+        await handle_suspicious_change(member, "Account age less than 1 day")
 
 
 @bot.event
@@ -148,7 +151,7 @@ async def check_message_content(message):
 
 async def check_spam(message):
     # Exclude the specific channel from spam checks
-    if message.channel.id == EXCLUDED_CHANNEL_ID:
+    if message.channel.id in EXCLUDED_CHANNEL_ID:
         return
 
     user_history = user_message_history[message.author.id]
@@ -524,22 +527,22 @@ async def calc(ctx, hashrate: float = None):
         and network_hashrate_ths is not None
         and spr_price is not None
     ):
-        own_hashrate_ths = hashrate / 1_000_000_000  # Convert kH/s to TH/s
+        own_hashrate_ths = hashrate / 1e9  # Convert kH/s to TH/s
         percent_of_network = own_hashrate_ths / float(network_hashrate_ths)
-        network_hashrate_mhs = (
-            float(network_hashrate_ths) * 1_000_000
-        )  # Convert TH/s to MH/s
+        network_hashrate_mhs = float(network_hashrate_ths) * 1e6  # Convert TH/s to MH/s
 
         blocks_per_day = 86_400  # Number of blocks per day
         total_SPR_per_day = blocks_per_day * blockreward
+        emissions24hr = total_SPR_per_day * spr_price
 
         reward_message = (
-            f"**Current Network Hashrate:** {network_hashrate_mhs:.2f} MH/s\n"
-            f"**Total Network SPR Mined per Day:** {total_SPR_per_day:.2f} SPR\n"
-            f"**Current Blockreward:** {blockreward} SPR\n"
-            f"**Current Price (USD per SPR):** {spr_price:.4f} USD\n"
-            f"**Your Portion of the Network Hashrate:** ({percent_of_network*100:.3f}%)\n\n"
-            f"**Estimated Mining Rewards:**\n"
+            f"**Network Hashrate:** {network_hashrate_mhs:.2f} MH/s\n"
+            f"**Daily SPR Mined:** {total_SPR_per_day:.2f} SPR\n"
+            f"**24h Emissions:** {emissions24hr:.2f} USD\n"
+            f"**Block Reward:** {blockreward} SPR\n"
+            f"**Price per SPR:** {spr_price:.4f} USD\n"
+            f"**Your Hashrate Share:** {percent_of_network*1e2:.3f}%\n\n"
+            f"**Estimated Rewards:**\n"
         )
 
         rewards = get_mining_rewards(blockreward, percent_of_network)
