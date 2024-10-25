@@ -540,7 +540,7 @@ async def calc(ctx, hashrate: float = None):
             f"**Daily SPR Mined:** {total_SPR_per_day:.2f} SPR\n"
             f"**24h Emissions:** {emissions24hr:.2f} USD\n"
             f"**Block Reward:** {blockreward} SPR\n"
-            f"**Price per SPR:** {spr_price:.4f} USD\n"
+            f"**Price per SPR:** {spr_price:.5f} USD\n"
             f"**Your Hashrate Share:** {percent_of_network*1e2:.3f}%\n\n"
             f"**Estimated Rewards:**\n"
         )
