@@ -2,7 +2,8 @@ import discord
 from discord.ext import commands
 import aiohttp
 import asyncio
-import logging, os
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
 from dotenv import load_dotenv
@@ -178,8 +179,8 @@ async def check_spam(message):
             except Exception as e:
                 logging.error(f"Failed to timeout user {message.author}: {e}")
 
-            # remove timeout message after 20 minutes
-            await asyncio.sleep(20 * 60)
+            # remove timeout message after 30 minutes
+            await asyncio.sleep(30 * 60)
             await timeout_message.delete()
 
 
@@ -189,7 +190,7 @@ async def handle_suspicious_change(member, reason):
 
     if account_age < ACCOUNT_AGE_LIMIT:
         await send_dm(
-            member, f"You have been kicked from the server due to suspicious activity."
+            member, "You have been kicked from the server due to suspicious activity."
         )
         await asyncio.sleep(1)
         await member.kick(reason=reason)
@@ -199,7 +200,7 @@ async def handle_suspicious_change(member, reason):
         )
     else:
         await send_dm(
-            member, f"You have been banned from the server due to suspicious activity."
+            member, "You have been banned from the server due to suspicious activity."
         )
         await asyncio.sleep(1)
         await member.ban(reason=reason)
@@ -214,7 +215,7 @@ async def handle_suspicious_change(member, reason):
 async def handle_banned_keyword(message, keyword):
     await send_dm(
         message.author,
-        f"Your message in the server contained banned content and was deleted.",
+        "Your message in the server contained banned content and was deleted.",
     )
     await asyncio.sleep(1)
     await message.guild.ban(
@@ -264,28 +265,7 @@ async def set_category_name():
         category = discord.utils.get(guild.categories, id=CATEGORY_ID)
         if category:
             await category.edit(name="--Spectre Network Stats--")
-            logging.info(f"Category name set to --Spectre Network Stats--")
-
-
-async def set_max_supply():
-    global MAX_SUPPLY
-    MAX_SUPPLY = await get_max_supply()
-    await bot.wait_until_ready()
-    guild = bot.get_guild(GUILD_ID)
-    if guild and MAX_SUPPLY:
-        channel_id = CHANNEL_IDS.get("Max Supply:")
-        new_name = f"Max Supply: {MAX_SUPPLY / 1e9:.3f} billion"
-        await update_or_create_channel(guild, channel_id, "Max Supply:", new_name)
-
-
-async def get_24h_volume():
-    url = "https://api.coingecko.com/api/v3/coins/spectre-network"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers={"accept": "application/json"}) as response:
-            data = await response.json()
-            volume_24h = data["market_data"]["total_volume"]["usd"]
-            logging.info(f"24h volume fetched: {volume_24h}")
-            return volume_24h
+            logging.info("Category name set to --Spectre Network Stats--")
 
 
 async def update_channels():
@@ -324,7 +304,7 @@ async def update_channels():
                 await update_member_count(guild, ROLE_ID, MEMBER_COUNT_CHANNEL_ID)
             except Exception as e:
                 logging.error(f"Error updating channels: {e}")
-            await asyncio.sleep(500)
+            await asyncio.sleep(600)
 
 
 async def update_member_count(guild, role_id, channel_id):
@@ -383,10 +363,10 @@ async def update_channel(
                 new_name = f"{channel_name} {data}"
 
     channel_id = CHANNEL_IDS.get(channel_name)
-    await update_or_create_channel(guild, channel_id, channel_name, new_name)
+    await update_existing_channel(guild, channel_id, channel_name, new_name)
 
 
-async def update_or_create_channel(guild, channel_id, channel_name, new_name):
+async def update_existing_channel(guild, channel_id, channel_name, new_name):
     try:
         if channel_id:
             channel = guild.get_channel(channel_id)
@@ -394,37 +374,29 @@ async def update_or_create_channel(guild, channel_id, channel_name, new_name):
                 await channel.edit(name=new_name)
                 logging.info(f"Updated channel {channel_name} to {new_name}")
             else:
-                new_channel = await guild.create_voice_channel(
-                    new_name,
-                    category=discord.utils.get(guild.categories, id=CATEGORY_ID),
-                )
-                CHANNEL_IDS[channel_name] = new_channel.id
-                logging.info(f"Created channel {new_name} with ID {new_channel.id}")
+                logging.error(f"Channel {channel_name} not found. Unable to update.")
         else:
-            new_channel = await guild.create_voice_channel(
-                new_name, category=discord.utils.get(guild.categories, id=CATEGORY_ID)
-            )
-            CHANNEL_IDS[channel_name] = new_channel.id
-            logging.info(f"Created channel {new_name} with ID {new_channel.id}")
+            logging.error(f"Channel ID for {channel_name} not found in CHANNEL_IDS.")
     except discord.errors.HTTPException as e:
         if e.status == 429:
             retry_after = int(e.response.headers.get("Retry-After", 60))
             logging.warning(f"Rate limited. Retrying in {retry_after} seconds.")
             await asyncio.sleep(retry_after)
-            await update_or_create_channel(guild, channel_id, channel_name, new_name)
+            await update_existing_channel(guild, channel_id, channel_name, new_name)
     except Exception as e:
-        logging.error(f"Error creating/updating channel {channel_name}: {e}")
+        logging.error(f"Error updating channel {channel_name}: {e}")
 
 
 # API functions
-async def get_data(url, headers={"accept": "application/json"}, as_json=True):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            if response.status == 200:
-                return await response.json() if as_json else await response.text()
-            else:
-                logging.error(f"Failed to fetch data from {url}: {response.status}")
-                return None
+async def set_max_supply():
+    global MAX_SUPPLY
+    MAX_SUPPLY = await get_max_supply()
+    await bot.wait_until_ready()
+    guild = bot.get_guild(GUILD_ID)
+    if guild and MAX_SUPPLY:
+        channel_id = CHANNEL_IDS.get("Max Supply:")
+        new_name = f"Max Supply: {MAX_SUPPLY / 1e9:.3f} billion"
+        await update_existing_channel(guild, channel_id, "Max Supply:", new_name)
 
 
 async def get_max_supply():
@@ -436,6 +408,26 @@ async def get_max_supply():
             max_supply = float(await response.text())
             logging.info(f"Max supply fetched: {max_supply}")
             return max_supply
+
+
+async def get_24h_volume():
+    url = "https://api.coingecko.com/api/v3/coins/spectre-network"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers={"accept": "application/json"}) as response:
+            data = await response.json()
+            volume_24h = data["market_data"]["total_volume"]["usd"]
+            logging.info(f"24h volume fetched: {volume_24h}")
+            return volume_24h
+
+
+async def get_data(url, headers={"accept": "application/json"}, as_json=True):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                return await response.json() if as_json else await response.text()
+            else:
+                logging.error(f"Failed to fetch data from {url}: {response.status}")
+                return None
 
 
 async def get_circulating_supply():
@@ -510,7 +502,7 @@ async def calc(ctx, hashrate: float = None):
     if ctx.channel.id != COMMAND_CHANNEL_ID:
         # Send the message and then delete it after a short delay
         msg = await ctx.send(
-            f"This command can only be used in the <#1250496462819950667> channel."
+            "This command can only be used in the <#1250496462819950667> channel."
         )
         await asyncio.sleep(30)  # Wait for 30 seconds before deleting
         await msg.delete()
