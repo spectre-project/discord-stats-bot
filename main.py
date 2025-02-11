@@ -8,15 +8,13 @@ from dotenv import load_dotenv
 
 from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
+from utils.sompi_to_spr import sompis_to_spr
 from utils.network_stats import update_network_info, network_info
 from utils.get_price_data import get_spr_price
 from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
 
 
-SOMPI_PER_SPECTRE = 100_000_000
-
 load_dotenv()
-
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("GUILD_ID"))
 
@@ -63,10 +61,8 @@ async def update_discord_channels():
             try:
                 logging.debug(f"network_info: {network_info}")
 
-                circulating_supply = (
-                    float(network_info["Circulating Supply"]) / SOMPI_PER_SPECTRE
-                )
-                max_supply = float(network_info["Max Supply"]) / SOMPI_PER_SPECTRE
+                circulating_supply = sompis_to_spr(float(network_info["Circulating Supply"]))
+                max_supply = sompis_to_spr(float(network_info["Max Supply"]))
                 difficulty = float(network_info["Difficulty"])
                 block_reward_text = network_info["Block Reward"]
                 hashrate = (difficulty * 2) / 1e6
