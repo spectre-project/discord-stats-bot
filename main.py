@@ -44,6 +44,7 @@ intents.messages = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 previous_updates = {}
+processor = BlockProcessor()
 
 
 async def update_discord_channels():
@@ -106,8 +107,10 @@ async def update_discord_channels():
                             await asyncio.sleep(30)
 
                 # update bot display name with BPS or default name
-                if bps["bps"] is not None:
-                    new_bot_name = f"BPS: {bps['bps']:.2f}"  # Format BPS value
+                if processor.bps["bps"] is not None:
+                    new_bot_name = (
+                        f"BPS: {processor.bps['bps']:.2f}"  # Format BPS value
+                    )
                 else:
                     new_bot_name = "Spectre Bot"  # Default name
 
@@ -119,9 +122,10 @@ async def update_discord_channels():
                     logging.error("Guild not found, cannot update bot name.")
                 await asyncio.sleep(5)  # Short delay to avoid rate limits
 
-                # update Discord activity status with latest Blue Score or default
-                if processor.get_latest_daa_score() is not None:
-                    activity_text = f"DAA Score: {processor.get_latest_daa_score()}"
+                # update Discord activity status with latest DAA Score
+                latest_daa_score = processor.last_daa_score
+                if latest_daa_score is not None:
+                    activity_text = f"DAA Score: {latest_daa_score}"
                 else:
                     activity_text = "Use /calc to estimate rewards"  # default activity
 
