@@ -58,8 +58,7 @@ async def message_iter(queue: asyncio.Queue, lock: asyncio.Semaphore):
         await lock.acquire()
 
 
-async def subscribe_to_daa():
-    processor = BlockProcessor()
+async def subscribe_to_daa(processor: BlockProcessor):
     channel = grpc.aio.insecure_channel(SPECTRED_GRPC_HOST)
     await asyncio.wait_for(channel.channel_ready(), timeout=5)
     stub = RPCStub(channel)
@@ -100,4 +99,5 @@ async def subscribe_to_daa():
 
 
 if __name__ == "__main__":
-    asyncio.run(subscribe_to_daa())
+    processor = BlockProcessor()
+    asyncio.run(subscribe_to_daa(processor))

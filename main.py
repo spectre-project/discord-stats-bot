@@ -60,8 +60,11 @@ async def update_discord_channels():
         if network_info:
             try:
                 logging.debug(f"network_info: {network_info}")
+                logging.debug(f"BlockProcessor class: {BlockProcessor}")
 
-                circulating_supply = sompis_to_spr(float(network_info["Circulating Supply"]))
+                circulating_supply = sompis_to_spr(
+                    float(network_info["Circulating Supply"])
+                )
                 max_supply = sompis_to_spr(float(network_info["Max Supply"]))
                 difficulty = float(network_info["Difficulty"])
                 block_reward_text = network_info["Block Reward"]
@@ -120,6 +123,7 @@ async def update_discord_channels():
 
                 # update Discord activity status with latest DAA Score
                 latest_daa_score = processor.last_daa_score
+                logging.debug(f"Received DAA score: {latest_daa_score}")
                 if latest_daa_score is not None:
                     activity_text = f"DAA Score: {latest_daa_score}"
                 else:
@@ -152,7 +156,7 @@ async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     logging.info("commands synced successfully!")
 
-    asyncio.create_task(subscribe_to_daa())
+    asyncio.create_task(subscribe_to_daa(processor))
     asyncio.create_task(update_discord_channels())
 
 
