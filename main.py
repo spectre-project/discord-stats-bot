@@ -10,7 +10,7 @@ from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
 from utils.network_stats import update_network_info, network_info
 from utils.get_price_data import get_spr_price
-from utils.subscribe_daa import bps, subscribe_to_daa
+from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
 
 
 SOMPI_PER_SPECTRE = 100_000_000
@@ -120,8 +120,8 @@ async def update_discord_channels():
                 await asyncio.sleep(5)  # Short delay to avoid rate limits
 
                 # update Discord activity status with latest Blue Score or default
-                if "Last Blue Score" in network_info:
-                    activity_text = f"Blue Score: {network_info['Last Blue Score']}"
+                if processor.get_latest_daa_score() is not None:
+                    activity_text = f"DAA Score: {processor.get_latest_daa_score()}"
                 else:
                     activity_text = "Use /calc to estimate rewards"  # default activity
 
