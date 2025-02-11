@@ -66,8 +66,6 @@ async def update_network_info():
         next_halving_date,
         days_until_halving,
     ) = await get_next_block_reward_info(daa_score)
-    blue_score_resp = await client.request("getSinkBlueScoreRequest", {})
-    blue_score = blue_score_resp["getSinkBlueScoreResponse"]["blueScore"]
 
     network_info.update(
         {
@@ -77,6 +75,5 @@ async def update_network_info():
             "Difficulty": difficulty,
             "Block Reward": f"{block_reward:.2f} -> {future_reward:.2f} in {days_until_halving:.1f} days",
             "Next Halving Date": f"{next_halving_date} (Timestamp: {next_halving_timestamp})",
-            "Last Blue Score": blue_score,
         }
     )
