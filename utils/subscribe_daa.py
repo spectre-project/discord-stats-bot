@@ -20,7 +20,7 @@ SPECTRED_GRPC_HOST = "127.0.0.1:18110"
 class BlockProcessor:
     def __init__(self):
         self.bps = {"latest_block_time": None, "avg_block_time": None, "bps": None}
-        self.block_times = deque(maxlen=300)
+        self.block_times = deque(maxlen=30)
         self.last_block_time = None
         self.last_daa_score = None
         self.block_data = {}
@@ -43,7 +43,7 @@ class BlockProcessor:
 
             logging.debug(
                 f"Block Time: {block_time:.2f} sec | "
-                f"Avg Block Time (Last 300): {avg_block_time:.2f} sec | BPS: {bps_value:.2f}"
+                f"Avg Block Time (Last 30): {avg_block_time:.2f} sec | BPS: {bps_value:.2f}"
             )
 
 
