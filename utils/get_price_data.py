@@ -14,6 +14,13 @@ async def get_spr_price():
     return market_data.get("current_price", {}).get("usd", None)
 
 
+@cached(ttl=120)
+async def get_spr_volume():
+    """Fetches the 24h total volume in USD."""
+    market_data = await fetch_market_data()
+    return market_data.get("total_volume", {}).get("usd", None)
+
+
 @cached(ttl=300)
 async def fetch_market_data():
     url = "https://api.coingecko.com/api/v3/coins/spectre-network"

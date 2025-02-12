@@ -10,7 +10,7 @@ from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
 from utils.sompi_to_spr import sompis_to_spr
 from utils.network_stats import update_network_info, network_info
-from utils.get_price_data import get_spr_price
+from utils.get_price_data import get_spr_price, get_spr_volume
 from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
 
 
@@ -26,6 +26,7 @@ logging.basicConfig(
 
 CHANNEL_IDS = {
     "Price": int(os.getenv("CHANNEL_PRICE")),
+    "24h_Volume": int(os.getenv("CHANNEL_TRADING_VOLUME")),
     "mcap": int(os.getenv("CHANNEL_MCAP")),
     "Max Supply": int(os.getenv("CHANNEL_MAX_SUPPLY")),
     "Mined Coins": int(os.getenv("CHANNEL_MINED_COINS")),
@@ -55,7 +56,8 @@ async def update_discord_channels():
         logging.debug("Fetching network data...")
         await update_network_info()
         spr_price = await get_spr_price()
-        logging.debug(f"Fetched SPR price: {spr_price}")
+        spr_volume = await get_spr_volume()
+        logging.debug(f"Fetched SPR Market Data: {spr_price} - {spr_volume}")
 
         if network_info:
             try:
@@ -75,6 +77,7 @@ async def update_discord_channels():
 
                 updates = {
                     "Price": f"💲: ${spr_price:.5f}",
+                    "24h_Volume": f"📊: ${spr_volume:.1f}",
                     "mcap": f"mcap: ${market_cap:,.1f}",
                     "Max Supply": f"Max: {max_supply:,.0f}",
                     "Mined Coins": f"⛏️: {circulating_supply:,.0f}",
