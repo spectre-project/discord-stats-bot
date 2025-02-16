@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
-from utils.sompi_to_spr import sompis_to_spr
 from utils.network_stats import update_network_info, network_info
 from utils.get_price_data import get_spr_price, get_spr_volume
 from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
@@ -33,6 +32,8 @@ CHANNEL_IDS = {
     "Mined Supply": int(os.getenv("CHANNEL_MINED_SUPPLY")),
     "Nethash": int(os.getenv("CHANNEL_NETHASH")),
     "Blockreward": int(os.getenv("CHANNEL_BLOCKREWARD")),
+    "TPS": int(os.getenv("CHANNEL_TPS")),
+    "SPR/s": int(os.getenv("CHANNEL_SPR_S")),
 }
 
 intents = discord.Intents.default()
@@ -64,16 +65,17 @@ async def update_discord_channels():
                 logging.debug(f"network_info: {network_info}")
                 logging.debug(f"BlockProcessor class: {BlockProcessor}")
 
-                circulating_supply = sompis_to_spr(
-                    float(network_info["Circulating Supply"])
-                )
-                max_supply = sompis_to_spr(float(network_info["Max Supply"]))
+                circulating_supply = float(network_info["Circulating Supply"])
+                max_supply = float(network_info["Max Supply"])
                 difficulty = float(network_info["Difficulty"])
                 block_reward_text = network_info["Block Reward"]
                 hashrate = (difficulty * 2) / 1e6
 
                 market_cap = spr_price * circulating_supply
                 mined_supply = (circulating_supply / max_supply) * 100
+
+                tps = network_info["TPS"]
+                sprs = network_info["SPR/s"]
 
                 updates = {
                     "Price": f"💲: ${spr_price:.5f}",
@@ -84,6 +86,8 @@ async def update_discord_channels():
                     "Mined Supply": f"⛏️: {mined_supply:.3f}% Mined",
                     "Nethash": f"⚡ {hashrate:.3f} MH/s",
                     "Blockreward": f"{block_reward_text}",
+                    "TPS": f"TPS: {tps}",
+                    "SPR/s": f"SPR/s: {sprs}",
                 }
 
                 # update channels only if changed
