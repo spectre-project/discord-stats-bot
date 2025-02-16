@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
-from utils.network_stats import update_network_info, network_info
+from utils.network_stats import update_network_info, network_info, calculate_tps_spr_s
 from utils.get_price_data import get_spr_price, get_spr_volume
 from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
 
@@ -55,9 +55,12 @@ async def update_discord_channels():
     while True:
         logging.debug("Fetching network data...")
         await update_network_info()
+        logging.debug("Getting TPS and SPR/s, Price & Volume...")
+        tps, sprs = await calculate_tps_spr_s()
         spr_price = await get_spr_price()
         spr_volume = await get_spr_volume()
-        logging.debug(f"Fetched SPR Market Data: {spr_price} - {spr_volume}")
+        logging.debug(f"SPR Market Data: {spr_price} - {spr_volume}")
+        logging.debug(f"TPS: {tps}, SPR/s: {sprs}")
 
         if network_info:
             try:
@@ -72,9 +75,6 @@ async def update_discord_channels():
 
                 market_cap = spr_price * circulating_supply
                 mined_supply = (circulating_supply / max_supply) * 100
-
-                tps = network_info["TPS"]
-                sprs = network_info["SPR/s"]
 
                 updates = {
                     "Price": f"💲: ${spr_price:.5f}",
@@ -149,7 +149,7 @@ async def update_discord_channels():
         if first_run:
             first_run = False
         else:
-            logging.info("Sleeping for 5min before next update...")
+            logging.info("Sleeping for 10min before next update...")
             await asyncio.sleep(600)
 
 

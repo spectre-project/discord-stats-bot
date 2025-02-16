@@ -21,6 +21,9 @@ CHANNEL_BLOCKREWARD=3.14159265358979323846264338327950
 CHANNEL_TPS_SPR_S=3.14159265358979323846264338327950
 ```
 
+TPS = (Total number of transactions in 100 chained blocks) 100
+SPR/s = (Total SPR transferred in 100 chained blocks) / 100
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
