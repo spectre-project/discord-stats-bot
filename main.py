@@ -85,7 +85,7 @@ async def update_discord_channels():
                     "Mined Supply": f"⛏️: {mined_supply:.3f}% Mined",
                     "Nethash": f"⚡ {hashrate:.3f} MH/s",
                     "Blockreward": f"{block_reward_text}",
-                    "TPS": f"TPS: {tps} ┃ ({sprs} SPR/s)",
+                    "TPS_SPR_S": f"TPS: {tps} ┃ ({sprs} SPR/s)",
                 }
 
                 # update channels only if changed
