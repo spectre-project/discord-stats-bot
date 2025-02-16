@@ -14,12 +14,9 @@ async def get_coin_supply(client):
     resp = await client.request("getCoinSupplyRequest", {})
     circulating_sompi = int(resp["getCoinSupplyResponse"]["circulatingSompi"])
     max_sompi = int(resp["getCoinSupplyResponse"]["maxSompi"])
-    circulating_spr = sompis_to_spr(circulating_sompi)
-    max_spr = sompis_to_spr(max_sompi)
-
     return {
-        "circulatingSupply": circulating_spr,
-        "maxSupply": max_spr,
+        "circulatingSupply": sompis_to_spr(circulating_sompi),
+        "maxSupply": sompis_to_spr(max_sompi),
     }
 
 
@@ -58,11 +55,6 @@ async def get_last_blocks(client, num_blocks=100):
     pruning_point = dag_info_resp["getBlockDagInfoResponse"]["pruningPointHash"]
     print(f"Pruning point hash: {pruning_point}")
 
-    # get selected tip
-    selected_tip_resp = await client.request("GetSinkRequest", {})
-    selected_tip = selected_tip_resp["GetSinkResponse"]["sink"]
-    print(f"Selected tip hash: {selected_tip}")
-
     block_hashes = []
     low_hash = pruning_point
 
@@ -73,7 +65,7 @@ async def get_last_blocks(client, num_blocks=100):
             {
                 "lowHash": low_hash,
                 "includeBlocks": True,
-                "includeTransactions": False,
+                "includeTransactions": True,
             },
         )
         response = blocks_resp["getBlocksResponse"]
@@ -82,53 +74,46 @@ async def get_last_blocks(client, num_blocks=100):
         blocks_batch = response.get("blocks", [])
 
         for block in blocks_batch:
-            block_hashes.append(block["verboseData"]["hash"])
+            block_hash = block["verboseData"]["hash"]
+            is_chain_block = block["verboseData"].get("isChainBlock", False)
+            print(f"Block {block_hash}: isChainBlock={is_chain_block}")
+
+            if is_chain_block:
+                block_hashes.append(block)
             if len(block_hashes) >= num_blocks:
                 break
 
         # Update low_hash to the last block's hash for the next iteration
         if block_hashes:
-            low_hash = block_hashes[-1]
+            low_hash = block_hashes[-1]["verboseData"]["hash"]
         else:
-            break  # No more blocks to fetch
-
-        # Stop if we've reached the selected tip
-        if low_hash == selected_tip:
             break
 
     return block_hashes
 
 
-async def get_blocks_detailed(client, start_block_hash):
-    resp = await client.request(
-        "getBlocksRequest",
-        {
-            "lowHash": start_block_hash,
-            "includeBlocks": True,
-            "includeTransactions": True,
-        },
-    )
-    blocks_detailed = resp["getBlocksResponse"]["blocks"]
+async def calculate_tps_spr_s(num_blocks=100):
+    client = SpectredMultiClient(spectred_hosts)
+    await client.initialize_all()
 
-    return blocks_detailed
-
-
-async def calculate_tps(client, num_blocks=100):
-    block_hashes = await get_last_blocks(client, num_blocks)
-
-    detailed_blocks = await get_blocks_detailed(client, block_hashes[-1])
+    chain_blocks = await get_last_blocks(client, num_blocks)
 
     tps, sprs = 0, 0
-    for block in detailed_blocks:
-        tps += len(block["transactions"])
+    for block in chain_blocks:
+        num_txs = len(block["transactions"])
+        print(f"Block {block['verboseData']['hash']} has {num_txs} transactions.")
+
+        tps += num_txs
         for tx in block["transactions"]:
             for output in tx["outputs"]:
                 sprs += int(output["amount"])
 
-    tps = round(tps / len(detailed_blocks), 1)  # Average TPS over the last 100 blocks
-    sprs = round(
-        sompis_to_spr(sprs) / len(detailed_blocks), 1
-    )  # Average SPR/s over the last 100 blocks
+    tps = (
+        round(tps / len(chain_blocks), 1) if chain_blocks else 0
+    )  # TPS = (Total number of transactions in 100 chained blocks) / 100
+    sprs = (
+        round(sompis_to_spr(sprs) / len(chain_blocks), 1) if chain_blocks else 0
+    )  # SPR/s = (Total SPR transferred in 100 chained blocks) / 100
 
     return tps, sprs
 
@@ -154,8 +139,6 @@ async def update_network_info():
         days_until_halving,
     ) = await get_next_block_reward_info(daa_score)
 
-    tps, sprs = await calculate_tps(client)
-
     network_info.update(
         {
             "Network Name": network_name,
@@ -164,7 +147,5 @@ async def update_network_info():
             "Difficulty": difficulty,
             "Block Reward": f"{block_reward:.2f} -> {future_reward:.2f} in {days_until_halving:.1f} days",
             "Next Halving Date": f"{next_halving_date} (Timestamp: {next_halving_timestamp})",
-            "TPS": f"{tps:.2f}",
-            "SPR/s": f"{sprs:.2f}",
         }
     )
