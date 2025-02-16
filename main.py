@@ -32,8 +32,7 @@ CHANNEL_IDS = {
     "Mined Supply": int(os.getenv("CHANNEL_MINED_SUPPLY")),
     "Nethash": int(os.getenv("CHANNEL_NETHASH")),
     "Blockreward": int(os.getenv("CHANNEL_BLOCKREWARD")),
-    "TPS": int(os.getenv("CHANNEL_TPS")),
-    "SPR/s": int(os.getenv("CHANNEL_SPR_S")),
+    "TPS_SPR_S": int(os.getenv("CHANNEL_TPS_SPR_S")),
 }
 
 intents = discord.Intents.default()
@@ -86,8 +85,7 @@ async def update_discord_channels():
                     "Mined Supply": f"⛏️: {mined_supply:.3f}% Mined",
                     "Nethash": f"⚡ {hashrate:.3f} MH/s",
                     "Blockreward": f"{block_reward_text}",
-                    "TPS": f"TPS: {tps}",
-                    "SPR/s": f"SPR/s: {sprs}",
+                    "TPS": f"TPS: {tps} ┃ ({sprs} SPR/s)",
                 }
 
                 # update channels only if changed
