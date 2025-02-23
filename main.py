@@ -10,7 +10,7 @@ from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
 from utils.network_stats import update_network_info, network_info, calculate_tps_spr_s
 from utils.get_price_data import get_spr_price, get_spr_volume
-from utils.subscribe_daa import subscribe_to_daa, BlockProcessor
+from utils.subscribe_new_block import subscribe_block_added, BlockProcessor
 
 
 load_dotenv()
@@ -127,10 +127,11 @@ async def update_discord_channels():
                 await asyncio.sleep(5)  # Short delay to avoid rate limits
 
                 # update Discord activity status with latest DAA Score
-                latest_daa_score = processor.last_daa_score
-                logging.debug(f"Received DAA score: {latest_daa_score}")
-                if latest_daa_score is not None:
-                    activity_text = f"DAA Score: {latest_daa_score}"
+                if "virtualDaaScore" in network_info:
+                    daa_score = network_info["virtualDaaScore"]
+                    logging.debug(f"Received DAA score: {daa_score}")
+                if daa_score is not None:
+                    activity_text = f"DAA Score: {daa_score}"
                 else:
                     activity_text = "Use /calc to estimate rewards"  # default activity
 
@@ -161,7 +162,7 @@ async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     logging.info("commands synced successfully!")
 
-    asyncio.create_task(subscribe_to_daa(processor))
+    asyncio.create_task(subscribe_block_added(processor))
     asyncio.create_task(update_discord_channels())
 
 

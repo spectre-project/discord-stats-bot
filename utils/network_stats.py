@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import time
 from datetime import datetime
 
@@ -6,7 +8,9 @@ from utils.deflationary_table import DEFLATIONARY_TABLE
 from utils.sompi_to_spr import sompis_to_spr
 
 
-spectred_hosts = ["127.0.0.1:18110", "mainnet-dnsseed-1.spectre-network.org:18110"]
+load_dotenv()
+SPECTRED_HOSTS = os.getenv("SPECTRED_HOSTS").split(",")
+
 network_info = {}
 
 
@@ -93,7 +97,7 @@ async def get_last_blocks(client, num_blocks=100):
 
 
 async def calculate_tps_spr_s(num_blocks=100):
-    client = SpectredMultiClient(spectred_hosts)
+    client = SpectredMultiClient(SPECTRED_HOSTS)
     await client.initialize_all()
 
     chain_blocks = await get_last_blocks(client, num_blocks)
@@ -121,7 +125,7 @@ async def calculate_tps_spr_s(num_blocks=100):
 async def update_network_info():
     global network_info
 
-    client = SpectredMultiClient(spectred_hosts)
+    client = SpectredMultiClient(SPECTRED_HOSTS)
     await client.initialize_all()
 
     dag_info_resp = await client.request("getBlockDagInfoRequest", {})
@@ -147,5 +151,6 @@ async def update_network_info():
             "Difficulty": difficulty,
             "Block Reward": f"{block_reward:.2f} -> {future_reward:.2f} in {days_until_halving:.1f} days",
             "Next Halving Date": f"{next_halving_date} (Timestamp: {next_halving_timestamp})",
+            "virtualDaaScore": daa_score,
         }
     )
