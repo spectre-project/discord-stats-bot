@@ -3,7 +3,7 @@ import logging
 import discord
 from discord import app_commands
 
-from utils.network_stats import update_network_info, network_info
+from utils.get_dag_info import update_network_info, network_info
 from utils.get_price_data import get_spr_price
 
 

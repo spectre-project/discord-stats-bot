@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
-from utils.network_stats import update_network_info, network_info, calculate_tps_spr_s
+from utils.get_dag_info import update_network_info, network_info, calculate_tps_spr_s
 from utils.get_price_data import get_spr_price, get_spr_volume
 from utils.subscribe_new_block import subscribe_block_added, BlockProcessor
 
