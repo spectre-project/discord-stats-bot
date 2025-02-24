@@ -6,6 +6,7 @@
 This is a Discord bot that fetches and displays real-time statistics from the Spectre Network using grpc.
 
 ```
+SPECTRED_HOSTS=127.0.0.1:18110,mainnet-dnsseed-1.spectre-network.org:18110
 DISCORD_TOKEN=3.14159265358979323846264338327950
 GUILD_ID=3.14159265358979323846264338327950
 LOG_CHANNEL_ID=3.14159265358979323846264338327950
@@ -21,8 +22,8 @@ CHANNEL_BLOCKREWARD=3.14159265358979323846264338327950
 CHANNEL_TPS_SPR_S=3.14159265358979323846264338327950
 ```
 
-TPS = (Total number of transactions in 100 chained blocks) 100
-SPR/s = (Total SPR transferred in 100 chained blocks) / 100
+* TPS = (Total number of transactions in 100 chained blocks since the last Pruning Point) / 100
+* SPR/s = (Total SPR transferred in 100 chained blocks since the last Pruning Point) / 100
 
 ## Contributing
 
