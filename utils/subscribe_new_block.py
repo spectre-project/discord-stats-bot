@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections import deque
 
+from utils.sompi_to_spr import sompis_to_spr
 from spectred.SpectredMultiClient import SpectredMultiClient
 
 
@@ -14,12 +15,16 @@ SPECTRED_HOSTS = os.getenv("SPECTRED_HOSTS").split(",")
 class BlockProcessor:
     def __init__(self):
         self.block_times = deque(maxlen=30)
-        self.blocks_cache = deque(maxlen=10)
+        self.blocks_cache = deque(maxlen=100)
         self.sorted_blocks = []
         self.bps = {
             "latest_block_time": None,
             "avg_block_time": None,
             "bps": None,
+        }
+        self.tps_sprs = {
+            "tps": None,
+            "sprs": None,
         }
 
     def calculate_bps(self, block_timestamp: int) -> None:
@@ -50,8 +55,29 @@ class BlockProcessor:
                     f"Avg Block Time (Last {len(self.block_times)}): {avg_block_time:.2f} sec | BPS: {bps_value:.2f}"
                 )
 
+    def calculate_tps_spr_s(self) -> None:
+        if len(self.blocks_cache) < 30:
+            return
+
+        total_txs = 0
+        total_sprs = 0
+
+        for block in self.blocks_cache:
+            total_txs += block["txCount"]
+
+            for tx in block["txs"]:
+                for _, amount in tx["outputs"]:
+                    total_sprs += int(amount)
+
+        average_tps = round(total_txs / len(self.blocks_cache), 1)
+        average_sprs = round(sompis_to_spr(total_sprs) / len(self.blocks_cache), 1)
+
+        self.tps_sprs["tps"] = average_tps
+        self.tps_sprs["sprs"] = average_sprs
+
+        logging.debug(f"TPS: {average_tps} | SPR/s: {average_sprs}")
+
     def add_block_to_cache(self, block_info) -> None:
-        # perhaps useful for future features
         block_data = {
             "block_hash": block_info["verboseData"]["hash"],
             "difficulty": block_info["verboseData"]["difficulty"],
@@ -66,10 +92,10 @@ class BlockProcessor:
                             output["verboseData"]["scriptPublicKeyAddress"],
                             output["amount"],
                         )
-                        for output in tx["outputs"][-20:]
+                        for output in tx["outputs"]
                     ],
                 }
-                for tx in block_info["transactions"][-20:]
+                for tx in block_info["transactions"]
             ],
         }
 
@@ -91,10 +117,9 @@ async def subscribe_block_added(processor: BlockProcessor):
             processor.add_block_to_cache(block_info)
             timestamp = block_info["header"]["timestamp"]
             processor.calculate_bps(float(timestamp))
+            processor.calculate_tps_spr_s()
 
             logging.debug(f"New Block! {block_info['verboseData']['hash']}")
-        except KeyError as e:
-            logging.error(f"Failed to process blockAddedNotification: {e}")
         except Exception as e:
             logging.error(f"error processing block: {e}")
 

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from commands.calculate import setup as setup_calculate
 from utils.spam import setup as setup_spam
-from utils.get_dag_info import update_network_info, network_info, calculate_tps_spr_s
+from utils.get_dag_info import update_network_info, network_info
 from utils.get_price_data import get_spr_price, get_spr_volume
 from utils.subscribe_new_block import subscribe_block_added, BlockProcessor
 
@@ -56,7 +56,10 @@ async def update_discord_channels():
         logging.debug("Fetching network data...")
         await update_network_info()
         logging.debug("Getting TPS and SPR/s, Price & Volume...")
-        tps, sprs = await calculate_tps_spr_s()
+        tps, sprs = (
+            processor.tps_sprs["tps"],
+            processor.tps_sprs["sprs"],
+        )
         spr_price = await get_spr_price()
         spr_volume = await get_spr_volume()
         logging.debug(f"SPR Market Data: {spr_price} - {spr_volume}")
